@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caffeinated Shots — Inventory Manager</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --brand: #054449; --brand-light: #0a6e75; --orange: #ff9b50; --cream: #ffeede;
+  --green: #2d7a4f; --green-bg: #edf7f1; --yellow: #b87a00; --yellow-bg: #fff8e6;
+  --red: #c0392b; --red-bg: #fdf0ef; --blue: #1a6fa0; --blue-bg: #e8f4fd;
+  --text: #1a1a1a; --text-muted: #666; --border: rgba(5,68,73,0.15);
+  --surface: #fff; --bg: #f7fafa;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+.header { background: var(--brand); color: #fff; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 100; }
+.header-brand { display: flex; align-items: center; gap: 10px; }
+.header-logo { width: 28px; height: 28px; background: var(--orange); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; color: var(--brand); }
+.header-title { font-size: 15px; font-weight: 500; }
+.header-sub { font-size: 11px; color: rgba(255,255,255,0.6); }
+.header-date { font-size: 12px; color: rgba(255,255,255,0.6); }
+.nav { background: var(--brand); border-top: 1px solid rgba(255,255,255,0.1); display: flex; overflow-x: auto; position: sticky; top: 52px; z-index: 99; }
+.nav::-webkit-scrollbar { display: none; }
+.nav-btn { padding: 10px 16px; font-size: 12px; color: rgba(255,255,255,0.6); border: none; background: none; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.15s; }
+.nav-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+.nav-btn:hover:not(.active) { color: rgba(255,255,255,0.9); }
+.content { padding: 16px; max-width: 960px; margin: 0 auto; width: 100%; }
+.section-title { font-size: 16px; font-weight: 500; color: var(--brand); margin-bottom: 14px; }
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.stat-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 500; color: var(--brand); }
+.stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.stat-card.green .stat-num { color: var(--green); }
+.stat-card.yellow .stat-num { color: var(--yellow); }
+.stat-card.red .stat-num { color: var(--red); }
+.filter-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.filter-btn { padding: 5px 12px; border-radius: 20px; font-size: 12px; border: 0.5px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+.filter-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.filter-btn.green.active { background: var(--green); border-color: var(--green); }
+.filter-btn.yellow.active { background: var(--yellow); border-color: var(--yellow); }
+.filter-btn.red.active { background: var(--red); border-color: var(--red); }
+.search-input { flex: 1; min-width: 160px; padding: 6px 10px; border: 0.5px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--surface); color: var(--text); outline: none; }
+.search-input:focus { border-color: var(--brand); }
+.inv-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.inv-table th { font-size: 11px; color: var(--text-muted); font-weight: 500; text-align: left; padding: 6px 8px; border-bottom: 0.5px solid var(--border); background: var(--bg); }
+.inv-table td { padding: 8px; border-bottom: 0.5px solid var(--border); font-size: 13px; vertical-align: middle; }
+.inv-table tr:last-child td { border-bottom: none; }
+.inv-table tr:hover td { background: var(--bg); }
+.status-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+.badge-green { background: var(--green-bg); color: var(--green); }
+.badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-blue { background: var(--blue-bg); color: var(--blue); }
+.btn { padding: 8px 16px; border-radius: 7px; font-size: 13px; cursor: pointer; border: 0.5px solid var(--border); background: var(--surface); color: var(--text); transition: all 0.15s; }
+.btn:hover { background: var(--bg); }
+.btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.btn-primary:hover { background: var(--brand-light); }
+.btn-orange { background: var(--orange); color: var(--brand); border-color: var(--orange); font-weight: 500; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.action-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 12px; }
+.action-card h3 { font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--brand); }
+.action-card p { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.form-group input, .form-group select, .form-group textarea { padding: 7px 10px; border: 0.5px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--surface); color: var(--text); outline: none; width: 100%; }
+.form-group input:focus, .form-group select:focus { border-color: var(--brand); }
+.divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+.divider span { font-size: 11px; color: var(--text-muted); }
+.divider::before, .divider::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
+.upload-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 24px 20px; text-align: center; cursor: pointer; transition: all 0.15s; display: block; }
+.upload-zone:hover { border-color: var(--brand); background: var(--cream); }
+.upload-zone input { display: none; }
+.upload-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; background: var(--cream); color: var(--brand); margin: 1px; }
+.tag-warn { background: var(--yellow-bg); color: var(--yellow); }
+.ai-thinking { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--cream); border-radius: 8px; font-size: 13px; color: var(--brand); margin: 10px 0; }
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(5,68,73,0.2); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.result-box { background: var(--green-bg); border: 0.5px solid rgba(45,122,79,0.3); border-radius: 8px; padding: 12px; margin: 10px 0; font-size: 13px; color: var(--green); }
+.result-box-blue { background: var(--blue-bg); border: 0.5px solid rgba(26,111,160,0.3); border-radius: 8px; padding: 12px; margin: 10px 0; font-size: 13px; color: var(--blue); }
+.error-box { background: var(--red-bg); border: 0.5px solid rgba(192,57,43,0.3); border-radius: 8px; padding: 12px; margin: 10px 0; font-size: 13px; color: var(--red); }
+.warn-box { background: var(--yellow-bg); border: 0.5px solid rgba(184,122,0,0.3); border-radius: 8px; padding: 12px; margin: 10px 0; font-size: 13px; color: var(--yellow); }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--brand); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; max-width: 300px; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.cat-header { font-size: 11px; font-weight: 500; color: var(--orange); background: var(--cream); padding: 4px 8px; letter-spacing: 0.5px; text-transform: uppercase; }
+.qty-input { width: 70px; padding: 4px 6px; border: 0.5px solid var(--border); border-radius: 5px; font-size: 13px; text-align: center; background: var(--surface); color: var(--text); }
+.qty-input:focus { border-color: var(--brand); outline: none; }
+.recipe-card { border: 0.5px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+.recipe-name { font-size: 13px; font-weight: 500; color: var(--brand); margin-bottom: 6px; }
+.log-entry { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+.log-entry:last-child { border-bottom: none; }
+.log-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.log-dot-in { background: var(--green); }
+.log-dot-out { background: var(--red); }
+.log-dot-adj { background: var(--yellow); }
+.log-dot-sales { background: var(--blue); }
+.log-meta { font-size: 11px; color: var(--text-muted); }
+.log-desc { font-size: 13px; }
+.sales-history-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+.sales-history-item:last-child { border-bottom: none; }
+.period-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--cream); color: var(--brand); }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 13px; }
+@media (max-width: 600px) {
+  .stats-grid { grid-template-columns: repeat(2,1fr); }
+  .form-row { grid-template-columns: 1fr; }
+  .content { padding: 12px; }
+  .inv-table th:nth-child(5), .inv-table td:nth-child(5) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">CS</div>
+    <div><div class="header-title">Caffeinated Shots</div><div class="header-sub">Inventory Manager</div></div>
+  </div>
+  <div class="header-date" id="header-date"></div>
+</div>
+<div class="nav" id="nav"></div>
+<div class="content" id="content"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ANTHROPIC_API_KEY = 'YOUR_API_KEY_HERE';
+
+const TABS=[{id:'dashboard',label:'⬡ Dashboard'},{id:'inventory',label:'☰ Inventory'},{id:'stock-in',label:'↑ Stock In'},{id:'stock-out',label:'↓ Stock Out'},{id:'recipes',label:'✦ Recipes'},{id:'forecast',label:'◈ Forecast'},{id:'reports',label:'▤ Reports'},{id:'log',label:'◷ Activity Log'},{id:'setup',label:'⚙ Setup'}];
+
+const DEFAULT_ITEMS=[
+  {id:'i001',name:'Butter - Unsalted',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i002',name:'Butter - Salted',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i003',name:'Whipping Cream',cat:'Dairy & Eggs',vendor:'Zepto',deliveryDays:1,parLevel:200,stock:0,unit:'gm'},
+  {id:'i004',name:'Cooking Cream',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'ml'},
+  {id:'i005',name:'Paneer',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i006',name:'Tofu',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i007',name:'Full-fat Milk',cat:'Dairy & Eggs',vendor:'Zepto',deliveryDays:1,parLevel:1000,stock:0,unit:'ml'},
+  {id:'i008',name:'Hung Curd',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i009',name:'Cream Cheese',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i010',name:'Mascarpone',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i011',name:'Curd',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i012',name:'Cheddar (block)',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i013',name:'Mozzarella (block)',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i014',name:'Parmesan (wedge)',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i015',name:'Feta',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i016',name:'Whole Eggs (bulk)',cat:'Dairy & Eggs',vendor:'Hyperpure',deliveryDays:2,parLevel:90,stock:0,unit:'pc'},
+  {id:'i017',name:'Frozen Mixed Berry',cat:'Fruits',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i018',name:'Fresh Strawberry',cat:'Fruits',vendor:'Big Basket',deliveryDays:1,parLevel:200,stock:0,unit:'gm'},
+  {id:'i019',name:'Grapes',cat:'Fruits',vendor:'Big Basket',deliveryDays:1,parLevel:100,stock:0,unit:'gm'},
+  {id:'i020',name:'Chicken Breast',cat:'Meats & Proteins',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i021',name:'Chicken Ham',cat:'Meats & Proteins',vendor:'Hyperpure',deliveryDays:2,parLevel:250,stock:0,unit:'gm'},
+  {id:'i022',name:'Chicken Sausages',cat:'Meats & Proteins',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i023',name:'Chicken Bacon',cat:'Meats & Proteins',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i024',name:'Granola',cat:'Bakery & Grains',vendor:'Zepto',deliveryDays:1,parLevel:200,stock:0,unit:'gm'},
+  {id:'i025',name:'Quinoa',cat:'Bakery & Grains',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i026',name:'Tortilla Maida',cat:'Bakery & Grains',vendor:'Hyperpure',deliveryDays:3,parLevel:24,stock:0,unit:'pc'},
+  {id:'i027',name:'Hash Brown (McCain)',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i028',name:'Fries',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:5000,stock:0,unit:'gm'},
+  {id:'i029',name:'Falafel (ITC)',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i030',name:'Breadcrumbs',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i031',name:'Baked Beans',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'tin'},
+  {id:'i032',name:'Olive Oil (extra virgin)',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'ml'},
+  {id:'i033',name:'Cooking Oil (sunflower)',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:5000,stock:0,unit:'ml'},
+  {id:'i034',name:'Pancake Syrup (Am. Garden)',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:250,stock:0,unit:'ml'},
+  {id:'i035',name:'Honey',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:250,stock:0,unit:'gm'},
+  {id:'i036',name:'White Sugar',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i037',name:'Brown Sugar',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i038',name:'Maida',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i039',name:'Baking Powder',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i040',name:'Baking Soda',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i041',name:'Vanilla Extract',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:250,stock:0,unit:'ml'},
+  {id:'i042',name:'Sesame Seeds',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i043',name:'Walnuts',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i044',name:'Chia Seeds',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i045',name:'Peeled Garlic',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i046',name:'Apricot Jam (Bhuira)',cat:'Grocery & Dry Goods',vendor:'Amazon',deliveryDays:3,parLevel:200,stock:0,unit:'gm'},
+  {id:'i047',name:'Dijon Mustard',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i048',name:'Mayonnaise (Wingreens)',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i049',name:'Tomato Ketchup (Veeba)',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i050',name:'Chipotle (Veeba)',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i051',name:'Garlic Mayo (Veeba)',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i052',name:'BBQ Sauce (Veeba)',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i053',name:'Tandoori Mayo (Wingreens)',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i054',name:'Soy Sauce',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'ml'},
+  {id:'i055',name:'Jalapeños',cat:'Condiments & Sauces',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'bottle'},
+  {id:'i056',name:'Tahina',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i057',name:'Salt',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i058',name:'Black Pepper',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i059',name:'White Pepper',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i060',name:'Garlic Powder',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i061',name:'Sumac',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i062',name:'Cinnamon',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i063',name:'Smoked Paprika',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i064',name:'Onion Powder',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:100,stock:0,unit:'gm'},
+  {id:'i065',name:'Oregano',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i066',name:'Thyme (dry)',cat:'Spices & Seasonings',vendor:'Hyperpure',deliveryDays:2,parLevel:50,stock:0,unit:'gm'},
+  {id:'i067',name:'Dark Chocolate (55-65%)',cat:'Dessert Ingredients',vendor:'Madhav Enterprise',deliveryDays:2,parLevel:2000,stock:0,unit:'gm'},
+  {id:'i068',name:'Cocoa Powder',cat:'Dessert Ingredients',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i069',name:'Biscoff Spread',cat:'Dessert Ingredients',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i070',name:'Biscoff Biscuits',cat:'Dessert Ingredients',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i071',name:'Nutella',cat:'Dessert Ingredients',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i072',name:'Chocochip',cat:'Dessert Ingredients',vendor:'Hyperpure',deliveryDays:2,parLevel:200,stock:0,unit:'gm'},
+  {id:'i073',name:'Pita Bread',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:10,stock:0,unit:'pc'},
+  {id:'i074',name:'Panini Bread',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:10,stock:0,unit:'pc'},
+  {id:'i075',name:'Sourdough Loaf',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i076',name:'Milk Loaf',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i077',name:'Slider Bun',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:20,stock:0,unit:'pc'},
+  {id:'i078',name:'Bagels',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:10,stock:0,unit:'pc'},
+  {id:'i079',name:'Croissants',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:5,stock:0,unit:'pc'},
+  {id:'i080',name:'Korean Bun',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:15,stock:0,unit:'pc'},
+  {id:'i081',name:'Onions',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:500,stock:0,unit:'gm'},
+  {id:'i082',name:'Potatoes',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:1000,stock:0,unit:'gm'},
+  {id:'i083',name:'Tomato (regular)',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:200,stock:0,unit:'gm'},
+  {id:'i084',name:'Cherry Tomato',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:50,stock:0,unit:'gm'},
+  {id:'i085',name:'Red Bell Pepper',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:1,stock:0,unit:'pc'},
+  {id:'i086',name:'Yellow Bell Pepper',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:1,stock:0,unit:'pc'},
+  {id:'i087',name:'Green Capsicum',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:1,stock:0,unit:'pc'},
+  {id:'i088',name:'Zucchini',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:1,stock:0,unit:'pc'},
+  {id:'i089',name:'Mushrooms (button)',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i090',name:'Lettuce Iceberg',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:100,stock:0,unit:'gm'},
+  {id:'i091',name:'Lettuce Green',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:100,stock:0,unit:'gm'},
+  {id:'i092',name:'Lettuce Red',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:100,stock:0,unit:'gm'},
+  {id:'i093',name:'Spinach',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:100,stock:0,unit:'gm'},
+  {id:'i094',name:'Cucumber',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:500,stock:0,unit:'gm'},
+  {id:'i095',name:'Avocado',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:2,stock:0,unit:'pc'},
+  {id:'i096',name:'Banana',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:2,stock:0,unit:'pc'},
+  {id:'i097',name:'Lemon',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:100,stock:0,unit:'gm'},
+  {id:'i098',name:'Fresh Parsley',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:100,stock:0,unit:'gm'},
+  {id:'i099',name:'Fresh Basil',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:50,stock:0,unit:'gm'},
+  {id:'i100',name:'Microgreens',cat:'Fresh Produce (Daily)',vendor:'Zepto',deliveryDays:1,parLevel:50,stock:0,unit:'gm'},
+  {id:'i101',name:'Tissue Roll',cat:'Usables',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'roll'},
+  {id:'i102',name:'Cling Wrap',cat:'Usables',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'roll'},
+  {id:'i103',name:'Butter Paper',cat:'Usables',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'pc'},
+  {id:'i104',name:'Plastic Gloves',cat:'Usables',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i105',name:'Piping Bag',cat:'Usables',vendor:'Hyperpure',deliveryDays:2,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i106',name:'Pita Bread Whole Wheat',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:10,stock:0,unit:'pc'},
+  {id:'i107',name:'Panini Bread Multigrain',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:10,stock:0,unit:'pc'},
+  {id:'i108',name:'Toast Bread Whole Wheat',cat:'Bakery (Suqr)',vendor:'Suqr',deliveryDays:1,parLevel:1,stock:0,unit:'pkt'},
+  {id:'i109',name:'Tortilla Whole Wheat',cat:'Bakery & Grains',vendor:'Hyperpure',deliveryDays:3,parLevel:24,stock:0,unit:'pc'},
+  {id:'i110',name:'Cheese Bites',cat:'Grocery & Dry Goods',vendor:'Hyperpure',deliveryDays:2,parLevel:500,stock:0,unit:'gm'},
+  {id:'i111',name:'Cinnamon Rolls',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:6,stock:0,unit:'pc'},
+  {id:'i112',name:'Banana Walnut Muffin',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:6,stock:0,unit:'pc'},
+  {id:'i113',name:'Mocha Muffin',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:6,stock:0,unit:'pc'},
+  {id:'i114',name:'Chicken Quiche',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:4,stock:0,unit:'pc'},
+  {id:'i115',name:'Veg Quiche',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:4,stock:0,unit:'pc'},
+  {id:'i116',name:'Chicken Brioche Bun',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:6,stock:0,unit:'pc'},
+  {id:'i117',name:'Veg Brioche Bun',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:6,stock:0,unit:'pc'},
+  {id:'i118',name:'Brownie',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:6,stock:0,unit:'pc'},
+  {id:'i119',name:'Croissant (ready-made)',cat:'Ready-Made Bakery',vendor:'Suqr',deliveryDays:1,parLevel:6,stock:0,unit:'pc'},
+];
+
+const DEFAULT_RECIPES=[
+  // PANCAKES (batter-based; batter = Maida, Eggs, Milk, Butter, Sugar, Baking Powder/Soda)
+  {id:'r001',name:'Classic Pancake',category:'Pancake',ingredients:[{name:'Maida',qty:'120'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Full-fat Milk',qty:'240'},{name:'Butter - Unsalted',qty:'28'},{name:'Brown Sugar',qty:'50'},{name:'Baking Powder',qty:'7'},{name:'Baking Soda',qty:'5'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Whipping Cream',qty:'20'}]},
+  {id:'r002',name:'Chocochip Pancake',category:'Pancake',ingredients:[{name:'Maida',qty:'120'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Full-fat Milk',qty:'240'},{name:'Butter - Unsalted',qty:'28'},{name:'Brown Sugar',qty:'50'},{name:'Baking Powder',qty:'7'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Whipping Cream',qty:'20'},{name:'Chocochip',qty:'25'}]},
+  {id:'r003',name:'Nutella Pancake',category:'Pancake',ingredients:[{name:'Maida',qty:'120'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Full-fat Milk',qty:'240'},{name:'Butter - Unsalted',qty:'28'},{name:'Brown Sugar',qty:'50'},{name:'Baking Powder',qty:'7'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Whipping Cream',qty:'20'},{name:'Nutella',qty:'15'}]},
+  {id:'r004',name:'Biscoff Pancake',category:'Pancake',ingredients:[{name:'Maida',qty:'120'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Full-fat Milk',qty:'240'},{name:'Butter - Unsalted',qty:'28'},{name:'Brown Sugar',qty:'50'},{name:'Baking Powder',qty:'7'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Whipping Cream',qty:'20'},{name:'Biscoff Spread',qty:'15'},{name:'Biscoff Biscuits',qty:'5'}]},
+  {id:'r005',name:'Banana Pancake',category:'Pancake',ingredients:[{name:'Maida',qty:'80'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Full-fat Milk',qty:'160'},{name:'Butter - Unsalted',qty:'20'},{name:'Brown Sugar',qty:'35'},{name:'Baking Powder',qty:'5'},{name:'Pancake Syrup (Am. Garden)',qty:'20'},{name:'Whipping Cream',qty:'15'},{name:'Banana',qty:'1'}]},
+  // FRENCH TOAST (Milk Loaf + Eggs + sugar + cinnamon + milk + syrup)
+  {id:'r006',name:'Classic French Toast',category:'French Toast',ingredients:[{name:'Milk Loaf',qty:'1'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Brown Sugar',qty:'16'},{name:'Cinnamon',qty:'1'},{name:'Full-fat Milk',qty:'53'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Whipping Cream',qty:'20'}]},
+  {id:'r007',name:'Summer Berry French Toast',category:'French Toast',ingredients:[{name:'Milk Loaf',qty:'1'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Brown Sugar',qty:'16'},{name:'Full-fat Milk',qty:'53'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Frozen Mixed Berry',qty:'30'},{name:'Whipping Cream',qty:'20'}]},
+  {id:'r008',name:'Nutella French Toast',category:'French Toast',ingredients:[{name:'Milk Loaf',qty:'1'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Brown Sugar',qty:'16'},{name:'Full-fat Milk',qty:'53'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Nutella',qty:'15'},{name:'Whipping Cream',qty:'20'}]},
+  {id:'r009',name:'Choco-Berry French Toast',category:'French Toast',ingredients:[{name:'Milk Loaf',qty:'1'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Brown Sugar',qty:'16'},{name:'Full-fat Milk',qty:'53'},{name:'Pancake Syrup (Am. Garden)',qty:'30'},{name:'Dark Chocolate (55-65%)',qty:'15'},{name:'Frozen Mixed Berry',qty:'10'},{name:'Whipping Cream',qty:'20'}]},
+  // SOURDOUGH OPEN TOAST
+  {id:'r010',name:'Mushroom Zucchini Open Toast',category:'Open Toast',ingredients:[{name:'Sourdough Loaf',qty:'1'},{name:'Cooking Cream',qty:'30'},{name:'Mushrooms (button)',qty:'0.3'},{name:'Zucchini',qty:'0.25'},{name:'Feta',qty:'10'},{name:'Cream Cheese',qty:'25'},{name:'Peeled Garlic',qty:'3'}]},
+  {id:'r011',name:'Smashed Avocado Open Toast',category:'Open Toast',ingredients:[{name:'Sourdough Loaf',qty:'1'},{name:'Avocado',qty:'0.5'},{name:'Feta',qty:'10'},{name:'Sesame Seeds',qty:'3'},{name:'Lemon',qty:'5'},{name:'Olive Oil (extra virgin)',qty:'5'}]},
+  {id:'r012',name:'Chicken Salad Open Toast',category:'Open Toast',ingredients:[{name:'Sourdough Loaf',qty:'1'},{name:'Hung Curd',qty:'80'},{name:'Chicken Breast',qty:'90'},{name:'Cucumber',qty:'15'},{name:'Lettuce Iceberg',qty:'20'},{name:'Dijon Mustard',qty:'5'},{name:'Parmesan (wedge)',qty:'5'}]},
+  {id:'r013',name:'Serene Open Toast',category:'Open Toast',ingredients:[{name:'Sourdough Loaf',qty:'1'},{name:'Cream Cheese',qty:'30'},{name:'Mascarpone',qty:'15'},{name:'Feta',qty:'10'},{name:'Apricot Jam (Bhuira)',qty:'22'},{name:'Grapes',qty:'30'},{name:'Fresh Strawberry',qty:'20'},{name:'Honey',qty:'10'},{name:'Walnuts',qty:'10'}]},
+  // SLIDERS (2pc, bun + filling + 60gm fried potato)
+  {id:'r014',name:'Hash Brown Sliders',category:'Sliders',ingredients:[{name:'Slider Bun',qty:'2'},{name:'Hash Brown (McCain)',qty:'2'},{name:'Tandoori Mayo (Wingreens)',qty:'15'},{name:'Lettuce Green',qty:'5'},{name:'Fries',qty:'60'}]},
+  {id:'r015',name:'BBQ Paneer Slider',category:'Sliders',ingredients:[{name:'Slider Bun',qty:'2'},{name:'Paneer',qty:'35'},{name:'BBQ Sauce (Veeba)',qty:'15'},{name:'Onions',qty:'10'},{name:'Lettuce Green',qty:'5'},{name:'Fries',qty:'60'}]},
+  {id:'r016',name:'Beetroot Channa Slider',category:'Sliders',ingredients:[{name:'Slider Bun',qty:'2'},{name:'Hung Curd',qty:'8'},{name:'Lettuce Green',qty:'5'},{name:'Fries',qty:'60'}]},
+  {id:'r017',name:'Avocado Egg Slider',category:'Sliders',ingredients:[{name:'Slider Bun',qty:'2'},{name:'Avocado',qty:'0.25'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Fries',qty:'60'}]},
+  {id:'r018',name:'Crispy Chicken Slider',category:'Sliders',ingredients:[{name:'Slider Bun',qty:'2'},{name:'Chicken Breast',qty:'70'},{name:'Chipotle (Veeba)',qty:'15'},{name:'Lettuce Iceberg',qty:'5'},{name:'Onions',qty:'5'},{name:'Fries',qty:'60'}]},
+  // BAGELS
+  {id:'r019',name:'Herb Cream Cheese Bagel',category:'Bagels',ingredients:[{name:'Bagels',qty:'1'},{name:'Cream Cheese',qty:'25'},{name:'Fresh Parsley',qty:'3'},{name:'Peeled Garlic',qty:'2'}]},
+  {id:'r020',name:'Cucumber Bagel',category:'Bagels',ingredients:[{name:'Bagels',qty:'1'},{name:'Cream Cheese',qty:'25'},{name:'Cucumber',qty:'30'},{name:'Peeled Garlic',qty:'2'}]},
+  {id:'r021',name:'Microgreens Bagel',category:'Bagels',ingredients:[{name:'Bagels',qty:'1'},{name:'Cream Cheese',qty:'25'},{name:'Microgreens',qty:'10'},{name:'Sesame Seeds',qty:'3'}]},
+  {id:'r022',name:'Grilled Chicken Bagel',category:'Bagels',ingredients:[{name:'Bagels',qty:'1'},{name:'Cream Cheese',qty:'20'},{name:'Chicken Breast',qty:'45'},{name:'Fresh Parsley',qty:'2'}]},
+  // PITA POCKETS
+  {id:'r023',name:'Falafel & Hummus Pita Pocket',category:'Pita Pockets',ingredients:[{name:'Pita Bread',qty:'1'},{name:'Falafel (ITC)',qty:'120'},{name:'Hung Curd',qty:'35'},{name:'Lettuce Iceberg',qty:'70'},{name:'Cucumber',qty:'20'},{name:'Tomato (regular)',qty:'20'},{name:'Onions',qty:'10'}]},
+  {id:'r024',name:'Beetroot Channa Pita Pocket',category:'Pita Pockets',ingredients:[{name:'Pita Bread',qty:'1'},{name:'Hung Curd',qty:'35'},{name:'Lettuce Iceberg',qty:'70'},{name:'Onions',qty:'10'}]},
+  {id:'r025',name:'Eggs & Feta Pita Pocket',category:'Pita Pockets',ingredients:[{name:'Pita Bread',qty:'1'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Feta',qty:'15'},{name:'Lettuce Iceberg',qty:'40'},{name:'Red Bell Pepper',qty:'0.2'},{name:'Yellow Bell Pepper',qty:'0.2'}]},
+  {id:'r026',name:'Grilled Chicken Beet Hummus Pita Pocket',category:'Pita Pockets',ingredients:[{name:'Pita Bread',qty:'1'},{name:'Chicken Breast',qty:'90'},{name:'Lettuce Iceberg',qty:'70'},{name:'Cucumber',qty:'20'},{name:'Tomato (regular)',qty:'20'}]},
+  // EGGS & TOAST
+  {id:'r027',name:'Spinach Eggs & Toast',category:'Eggs & Toast',ingredients:[{name:'Spinach',qty:'30'},{name:'Whole Eggs (bulk)',qty:'3'},{name:'Sesame Seeds',qty:'2'},{name:'Milk Loaf',qty:'1'},{name:'Lettuce Green',qty:'40'}]},
+  {id:'r028',name:'Mushroom Eggs & Toast',category:'Eggs & Toast',ingredients:[{name:'Mushrooms (button)',qty:'0.3'},{name:'Butter - Unsalted',qty:'10'},{name:'Whole Eggs (bulk)',qty:'3'},{name:'Milk Loaf',qty:'1'},{name:'Lettuce Green',qty:'40'}]},
+  {id:'r029',name:'Indian Masala Eggs & Toast',category:'Eggs & Toast',ingredients:[{name:'Whole Eggs (bulk)',qty:'3'},{name:'Onions',qty:'15'},{name:'Tomato (regular)',qty:'15'},{name:'Milk Loaf',qty:'1'},{name:'Lettuce Green',qty:'40'}]},
+  {id:'r030',name:'Sydney Eggs & Toast',category:'Eggs & Toast',ingredients:[{name:'Whole Eggs (bulk)',qty:'3'},{name:'Cream Cheese',qty:'20'},{name:'Milk Loaf',qty:'1'},{name:'Lettuce Green',qty:'40'},{name:'Fresh Parsley',qty:'2'}]},
+  // GRANOLA BOWLS
+  {id:'r031',name:'Granola Bowl (Fresh Fruits)',category:'Granola Bowls',ingredients:[{name:'Curd',qty:'100'},{name:'Hung Curd',qty:'20'},{name:'Honey',qty:'15'},{name:'Granola',qty:'80'},{name:'Chia Seeds',qty:'5'},{name:'Fresh Strawberry',qty:'20'},{name:'Grapes',qty:'15'},{name:'Banana',qty:'0.25'}]},
+  {id:'r032',name:'Granola Bowl (Berry)',category:'Granola Bowls',ingredients:[{name:'Curd',qty:'100'},{name:'Hung Curd',qty:'20'},{name:'Frozen Mixed Berry',qty:'30'},{name:'Honey',qty:'30'},{name:'Granola',qty:'80'},{name:'Chia Seeds',qty:'5'},{name:'Fresh Strawberry',qty:'20'}]},
+  {id:'r033',name:'Granola Bowl (Chocolate Honey)',category:'Granola Bowls',ingredients:[{name:'Curd',qty:'100'},{name:'Hung Curd',qty:'20'},{name:'Honey',qty:'15'},{name:'Cocoa Powder',qty:'3'},{name:'Nutella',qty:'10'},{name:'Granola',qty:'80'},{name:'Chia Seeds',qty:'5'},{name:'Fresh Strawberry',qty:'20'}]},
+  // PANINI SANDWICHES
+  {id:'r034',name:'Grilled Vegetable Panini',category:'Panini',ingredients:[{name:'Panini Bread',qty:'1'},{name:'Chipotle (Veeba)',qty:'10'},{name:'Cheddar (block)',qty:'20'},{name:'Zucchini',qty:'0.2'},{name:'Mushrooms (button)',qty:'0.2'},{name:'Red Bell Pepper',qty:'0.17'},{name:'Onions',qty:'15'},{name:'Jalapeños',qty:'0.05'},{name:'Mozzarella (block)',qty:'30'},{name:'Fries',qty:'60'}]},
+  {id:'r035',name:'Mushroom Grilled Cheese Panini',category:'Panini',ingredients:[{name:'Panini Bread',qty:'1'},{name:'Mushrooms (button)',qty:'0.5'},{name:'Mozzarella (block)',qty:'50'},{name:'Peeled Garlic',qty:'3'},{name:'Fries',qty:'60'}]},
+  {id:'r036',name:'Tandoori Paneer Panini',category:'Panini',ingredients:[{name:'Panini Bread',qty:'1'},{name:'Tandoori Mayo (Wingreens)',qty:'20'},{name:'Lettuce Green',qty:'15'},{name:'Green Capsicum',qty:'0.17'},{name:'Paneer',qty:'60'},{name:'Onions',qty:'15'},{name:'Fries',qty:'60'}]},
+  {id:'r037',name:'Tandoori Chicken Panini',category:'Panini',ingredients:[{name:'Panini Bread',qty:'1'},{name:'Tandoori Mayo (Wingreens)',qty:'20'},{name:'Lettuce Green',qty:'15'},{name:'Green Capsicum',qty:'0.17'},{name:'Chicken Breast',qty:'90'},{name:'Onions',qty:'15'},{name:'Fries',qty:'60'}]},
+  {id:'r038',name:'BBQ Pulled Melt Panini',category:'Panini',ingredients:[{name:'Panini Bread',qty:'1'},{name:'Mozzarella (block)',qty:'40'},{name:'Chicken Breast',qty:'90'},{name:'BBQ Sauce (Veeba)',qty:'20'},{name:'Sesame Seeds',qty:'2'},{name:'Onions',qty:'10'},{name:'Fries',qty:'60'}]},
+  {id:'r039',name:'Pesto Chicken Panini',category:'Panini',ingredients:[{name:'Panini Bread',qty:'1'},{name:'Chicken Breast',qty:'90'},{name:'Fresh Basil',qty:'30'},{name:'Walnuts',qty:'10'},{name:'Parmesan (wedge)',qty:'7'},{name:'Olive Oil (extra virgin)',qty:'13'},{name:'Fries',qty:'60'}]},
+  {id:'r040',name:'Ham & Cheese Panini',category:'Panini',ingredients:[{name:'Panini Bread',qty:'1'},{name:'Chicken Ham',qty:'45'},{name:'Mozzarella (block)',qty:'45'},{name:'Fresh Parsley',qty:'2'}]},
+  // WRAPS
+  {id:'r041',name:'Falafel Wrap',category:'Wraps',ingredients:[{name:'Tortilla Maida',qty:'1'},{name:'Falafel (ITC)',qty:'80'},{name:'Hung Curd',qty:'15'},{name:'Lettuce Iceberg',qty:'60'},{name:'Sesame Seeds',qty:'2'},{name:'Fries',qty:'60'}]},
+  {id:'r042',name:'Peri Peri Paneer Wrap',category:'Wraps',ingredients:[{name:'Tortilla Maida',qty:'1'},{name:'Paneer',qty:'80'},{name:'Red Bell Pepper',qty:'0.17'},{name:'Yellow Bell Pepper',qty:'0.17'},{name:'Lettuce Green',qty:'40'},{name:'Onions',qty:'5'},{name:'Garlic Mayo (Veeba)',qty:'40'},{name:'Jalapeños',qty:'0.05'},{name:'Fries',qty:'60'}]},
+  {id:'r043',name:'Avocado Egg Wrap',category:'Wraps',ingredients:[{name:'Tortilla Maida',qty:'1'},{name:'Avocado',qty:'0.3'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Lettuce Iceberg',qty:'20'},{name:'Fries',qty:'60'}]},
+  {id:'r044',name:'Nashville Crispy Chicken Wrap',category:'Wraps',ingredients:[{name:'Tortilla Maida',qty:'1'},{name:'Chicken Breast',qty:'90'},{name:'Breadcrumbs',qty:'30'},{name:'Whole Eggs (bulk)',qty:'0.5'},{name:'Lettuce Green',qty:'20'},{name:'Lettuce Red',qty:'10'},{name:'Jalapeños',qty:'0.05'},{name:'Dijon Mustard',qty:'10'},{name:'BBQ Sauce (Veeba)',qty:'5'},{name:'Fries',qty:'60'}]},
+  {id:'r045',name:'Grilled Chicken Wrap',category:'Wraps',ingredients:[{name:'Tortilla Maida',qty:'1'},{name:'Chicken Breast',qty:'90'},{name:'Hung Curd',qty:'50'},{name:'Lettuce Iceberg',qty:'30'},{name:'Lettuce Green',qty:'10'},{name:'Garlic Mayo (Veeba)',qty:'10'},{name:'Fries',qty:'60'}]},
+  // SALAD BOWLS
+  {id:'r046',name:'Grilled Chicken Salad',category:'Salad Bowls',ingredients:[{name:'Chicken Breast',qty:'135'},{name:'Lettuce Green',qty:'60'},{name:'Cucumber',qty:'30'},{name:'Red Bell Pepper',qty:'0.25'},{name:'Yellow Bell Pepper',qty:'0.25'},{name:'Onions',qty:'15'},{name:'Tomato (regular)',qty:'15'},{name:'Hung Curd',qty:'30'}]},
+  {id:'r047',name:'Pesto Chicken Salad',category:'Salad Bowls',ingredients:[{name:'Chicken Breast',qty:'135'},{name:'Fresh Basil',qty:'15'},{name:'Lettuce Green',qty:'60'},{name:'Cucumber',qty:'30'},{name:'Red Bell Pepper',qty:'0.25'},{name:'Yellow Bell Pepper',qty:'0.25'},{name:'Walnuts',qty:'10'}]},
+  {id:'r048',name:'Grilled Paneer Salad',category:'Salad Bowls',ingredients:[{name:'Paneer',qty:'120'},{name:'Lettuce Green',qty:'60'},{name:'Cucumber',qty:'30'},{name:'Red Bell Pepper',qty:'0.2'},{name:'Cherry Tomato',qty:'20'},{name:'Hung Curd',qty:'30'},{name:'Peeled Garlic',qty:'3'}]},
+  {id:'r049',name:'Silken Tofu Salad',category:'Salad Bowls',ingredients:[{name:'Tofu',qty:'120'},{name:'Soy Sauce',qty:'10'},{name:'Sesame Seeds',qty:'3'},{name:'Lettuce Green',qty:'60'},{name:'Cucumber',qty:'30'},{name:'Cherry Tomato',qty:'20'},{name:'Tahina',qty:'10'},{name:'Lemon',qty:'10'}]},
+  {id:'r050',name:'Boiled Egg Salad',category:'Salad Bowls',ingredients:[{name:'Whole Eggs (bulk)',qty:'3'},{name:'Lettuce Green',qty:'60'},{name:'Cucumber',qty:'30'},{name:'Red Bell Pepper',qty:'0.25'},{name:'Cherry Tomato',qty:'20'},{name:'Hung Curd',qty:'30'}]},
+  {id:'r051',name:'Veggie Salad',category:'Salad Bowls',ingredients:[{name:'Lettuce Green',qty:'80'},{name:'Cucumber',qty:'30'},{name:'Red Bell Pepper',qty:'0.25'},{name:'Cherry Tomato',qty:'20'},{name:'Onions',qty:'10'},{name:'Hung Curd',qty:'30'}]},
+  // BREAKFAST PLATTERS (10 variants)
+  {id:'r052',name:'English Breakfast Platter (Veg)',category:'Breakfast Platters',ingredients:[{name:'Paneer',qty:'60'},{name:'Hash Brown (McCain)',qty:'3'},{name:'Baked Beans',qty:'0.25'},{name:'Avocado',qty:'0.5'},{name:'Mushrooms (button)',qty:'0.4'},{name:'Tomato (regular)',qty:'40'},{name:'Milk Loaf',qty:'1'}]},
+  {id:'r053',name:'English Breakfast Platter (Non Veg)',category:'Breakfast Platters',ingredients:[{name:'Whole Eggs (bulk)',qty:'2'},{name:'Chicken Sausages',qty:'0.2'},{name:'Hash Brown (McCain)',qty:'3'},{name:'Baked Beans',qty:'0.25'},{name:'Mushrooms (button)',qty:'0.4'},{name:'Tomato (regular)',qty:'40'},{name:'Milk Loaf',qty:'1'}]},
+  {id:'r054',name:'American Breakfast Platter (Veg)',category:'Breakfast Platters',ingredients:[{name:'Maida',qty:'80'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Full-fat Milk',qty:'160'},{name:'Paneer',qty:'60'},{name:'Honey',qty:'10'},{name:'Avocado',qty:'0.5'},{name:'Fries',qty:'60'}]},
+  {id:'r055',name:'American Breakfast Platter (Non Veg)',category:'Breakfast Platters',ingredients:[{name:'Maida',qty:'80'},{name:'Whole Eggs (bulk)',qty:'3'},{name:'Full-fat Milk',qty:'160'},{name:'Chicken Bacon',qty:'0.2'},{name:'Avocado',qty:'0.5'},{name:'Fries',qty:'60'}]},
+  {id:'r056',name:'Mexican Breakfast Platter (Veg)',category:'Breakfast Platters',ingredients:[{name:'Tortilla Maida',qty:'1'},{name:'Baked Beans',qty:'0.2'},{name:'Onions',qty:'15'},{name:'Tomato (regular)',qty:'15'},{name:'Avocado',qty:'0.5'},{name:'Tofu',qty:'60'},{name:'Red Bell Pepper',qty:'0.2'},{name:'Fries',qty:'60'},{name:'Hung Curd',qty:'70'}]},
+  {id:'r057',name:'Mexican Breakfast Platter (Non Veg)',category:'Breakfast Platters',ingredients:[{name:'Tortilla Maida',qty:'1'},{name:'Baked Beans',qty:'0.2'},{name:'Onions',qty:'15'},{name:'Tomato (regular)',qty:'15'},{name:'Avocado',qty:'0.5'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Fries',qty:'60'},{name:'Hung Curd',qty:'70'}]},
+  {id:'r058',name:'Mediterranean Breakfast Platter (Veg)',category:'Breakfast Platters',ingredients:[{name:'Hung Curd',qty:'55'},{name:'Pita Bread',qty:'1'},{name:'Lettuce Green',qty:'50'},{name:'Falafel (ITC)',qty:'120'},{name:'Feta',qty:'15'},{name:'Paneer',qty:'60'}]},
+  {id:'r059',name:'Mediterranean Breakfast Platter (Non Veg)',category:'Breakfast Platters',ingredients:[{name:'Hung Curd',qty:'55'},{name:'Pita Bread',qty:'1'},{name:'Lettuce Green',qty:'50'},{name:'Falafel (ITC)',qty:'120'},{name:'Feta',qty:'15'},{name:'Whole Eggs (bulk)',qty:'2'}]},
+  {id:'r060',name:'Turkish Breakfast Platter (Veg)',category:'Breakfast Platters',ingredients:[{name:'Hung Curd',qty:'100'},{name:'Cream Cheese',qty:'80'},{name:'Fries',qty:'60'},{name:'Sourdough Loaf',qty:'1'},{name:'Lettuce Green',qty:'60'},{name:'Paneer',qty:'60'},{name:'Lemon',qty:'5'}]},
+  {id:'r061',name:'Turkish Breakfast Platter (Non Veg)',category:'Breakfast Platters',ingredients:[{name:'Hung Curd',qty:'100'},{name:'Cream Cheese',qty:'80'},{name:'Fries',qty:'60'},{name:'Sourdough Loaf',qty:'1'},{name:'Lettuce Green',qty:'60'},{name:'Whole Eggs (bulk)',qty:'2'},{name:'Lemon',qty:'5'}]},
+  // SIDES
+  {id:'r062',name:'Cheese Garlic Bread',category:'Sides',ingredients:[{name:'Milk Loaf',qty:'1'},{name:'Butter - Unsalted',qty:'15'},{name:'Peeled Garlic',qty:'5'},{name:'Mozzarella (block)',qty:'69'},{name:'Chipotle (Veeba)',qty:'15'}]},
+  {id:'r063',name:'Chicken Corn Dog',category:'Sides',ingredients:[{name:'Chicken Sausages',qty:'0.2'},{name:'Maida',qty:'50'},{name:'Whole Eggs (bulk)',qty:'1'},{name:'Cooking Oil (sunflower)',qty:'30'}]},
+  {id:'r064',name:'Fries',category:'Sides',ingredients:[{name:'Fries',qty:'260'},{name:'Cooking Oil (sunflower)',qty:'30'}]},
+  {id:'r065',name:'Peri Peri Fries',category:'Sides',ingredients:[{name:'Fries',qty:'260'},{name:'Cooking Oil (sunflower)',qty:'30'},{name:'Garlic Mayo (Veeba)',qty:'20'}]},
+  {id:'r066',name:'Korean Bun Veg',category:'Sides',ingredients:[{name:'Korean Bun',qty:'1'},{name:'Cream Cheese',qty:'80'},{name:'Mozzarella (block)',qty:'20'},{name:'Butter - Unsalted',qty:'10'},{name:'Peeled Garlic',qty:'5'},{name:'Fresh Parsley',qty:'3'}]},
+  {id:'r067',name:'Chicken Korean Bun',category:'Sides',ingredients:[{name:'Korean Bun',qty:'1'},{name:'Cream Cheese',qty:'50'},{name:'Chicken Ham',qty:'30'},{name:'Mozzarella (block)',qty:'15'},{name:'Butter - Unsalted',qty:'10'},{name:'Peeled Garlic',qty:'5'},{name:'Fresh Parsley',qty:'3'}]},
+  {id:'r068',name:'Crispy Potatoes',category:'Sides',ingredients:[{name:'Potatoes',qty:'200'},{name:'Cooking Oil (sunflower)',qty:'30'}]},
+  // READY-MADE BAKERY (1:1)
+  {id:'r069',name:'Cinnamon Rolls',category:'Ready-Made Bakery',ingredients:[{name:'Cinnamon Rolls',qty:'1'}]},
+  {id:'r070',name:'Banana Walnut Muffin',category:'Ready-Made Bakery',ingredients:[{name:'Banana Walnut Muffin',qty:'1'}]},
+  {id:'r071',name:'Mocha Muffin',category:'Ready-Made Bakery',ingredients:[{name:'Mocha Muffin',qty:'1'}]},
+  {id:'r072',name:'Chicken Quiche',category:'Ready-Made Bakery',ingredients:[{name:'Chicken Quiche',qty:'1'}]},
+  {id:'r073',name:'Veg Quiche',category:'Ready-Made Bakery',ingredients:[{name:'Veg Quiche',qty:'1'}]},
+  {id:'r074',name:'Chicken Brioche Bun',category:'Ready-Made Bakery',ingredients:[{name:'Chicken Brioche Bun',qty:'1'}]},
+  {id:'r075',name:'Veg Brioche Bun',category:'Ready-Made Bakery',ingredients:[{name:'Veg Brioche Bun',qty:'1'}]},
+  {id:'r076',name:'Brownie',category:'Ready-Made Bakery',ingredients:[{name:'Brownie',qty:'1'}]},
+  {id:'r077',name:'Croissant',category:'Ready-Made Bakery',ingredients:[{name:'Croissant (ready-made)',qty:'1'}]},
+];
+
+const INITIAL_SALES={'Cappuccino':252,'Iced Latte':240,'Cafe Latte':125,'Frappe Latte':103,'Iced Americano':90,'Mocha Frappe':59,'Iced Mocha':41,'Caramel Frappe':44,'Korean Bun Veg':88,'Beetroot Chana Tikki Pita Pocket':47,'Peri Peri Paneer Wrap':32,'Grilled Chicken Wrap':32,'Falafel Wrap':27,'Nashville Hot Crispy Chicken Wrap':29,'Grilled Chicken & Beet Hummus Pita Pocket':27,'Falafel & Hummus Pita Pocket':34,'Turkish Breakfast Platter (Non Veg)':28,'Smashed Avocado Open Toast':41,'Mushroom Grilled Cheese Panini':29,'Grilled Chicken Salad':19,'Banana Pancake':18,'Nutella Pancake':23,'Biscoff Pancake':21,'Classic Pancake':20,'Chocolate Cookie':51,'Peanut Butter Cookie':35,'Crispy Potatoes':25,'English Breakfast Platter (Non Veg)':15,'Brownie Sundae':15,'Grilled Chicken Bagel':20,'Hash Brown Sliders':18,'Crispy Chicken Slider':19,'Granola Bowl (Fresh Fruits)':10};
+
+const STORAGE_KEY='cs_inventory_v3';
+let ST={tab:'dashboard',items:[],recipes:[],activityLog:[],salesData:{},salesHistory:[],totalSalesDays:30,invFilter:'all',invSearch:'',stockInMode:null,stockOutMode:null,aiProcessing:false,aiResult:null,aiError:null,aiWarn:null,movements:[],reportPeriod:'week'};
+
+function norm(s){return s.toLowerCase().replace(/[-–]/g,' ').replace(/\s+/g,' ').trim();}
+function fuzzyMatch(items,name){const n=norm(name);return items.find(i=>norm(i.name)===n)||items.find(i=>norm(i.name).includes(n)||n.includes(norm(i.name)));}
+
+function loadState(){
+  try{
+    const s=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+    ST.items=s.items&&s.items.length?s.items:DEFAULT_ITEMS;
+    ST.recipes=s.recipes&&s.recipes.length?s.recipes:DEFAULT_RECIPES;
+    ST.activityLog=s.activityLog||[];
+    ST.salesData=s.salesData||INITIAL_SALES;
+    ST.salesHistory=s.salesHistory||[];
+    ST.totalSalesDays=s.totalSalesDays||30;
+    ST.movements=s.movements||[];
+    ST.openingSnapshot=s.openingSnapshot||null;
+  }catch(e){ST.items=DEFAULT_ITEMS;ST.recipes=DEFAULT_RECIPES;ST.salesData=INITIAL_SALES;ST.movements=[];}
+}
+
+function saveState(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({items:ST.items,recipes:ST.recipes,activityLog:ST.activityLog.slice(0,200),salesData:ST.salesData,salesHistory:ST.salesHistory.slice(0,52),totalSalesDays:ST.totalSalesDays,movements:ST.movements.slice(0,2000),openingSnapshot:ST.openingSnapshot}));}catch(e){}
+}
+
+// Record a stock movement for reports. dir: 'in'|'out', source: 'invoice'|'manual'|'sales'|'wastage'|'count'
+function recordMove(itemId,itemName,dir,source,qty,unit){
+  ST.movements.unshift({id:Date.now()+Math.random(),itemId,itemName,dir,source,qty,unit,ts:Date.now(),date:new Date().toISOString().slice(0,10)});
+}
+
+function status(i){if(i.stock<=0)return'red';const r=i.stock/i.parLevel;return r>=1?'green':r>=0.4?'yellow':'red';}
+
+function toast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+
+function log(type,desc,details=''){ST.activityLog.unshift({id:Date.now(),type,desc,details,ts:new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})});}
+
+function renderNav(){document.getElementById('nav').innerHTML=TABS.map(t=>`<button class="nav-btn ${ST.tab===t.id?'active':''}" onclick="go('${t.id}')">${t.label}</button>`).join('');}
+
+function go(tab){ST.tab=tab;ST.stockInMode=null;ST.stockOutMode=null;ST.aiResult=null;ST.aiError=null;ST.aiWarn=null;renderNav();render();}
+
+function render(){
+  const fns={dashboard:rDash,inventory:rInv,'stock-in':rStockIn,'stock-out':rStockOut,recipes:rRecipes,forecast:rForecast,reports:rReports,log:rLog,setup:rSetup};
+  document.getElementById('content').innerHTML=(fns[ST.tab]||rDash)();
+  // Post-render setup for recipes tab
+  if(ST.tab==='recipes'){
+    const rows=document.getElementById('recipe-ing-rows');
+    if(rows&&rows.children.length===0){rows.insertAdjacentHTML('beforeend',ingRowHtml());rows.insertAdjacentHTML('beforeend',ingRowHtml());}
+    const sel=document.getElementById('rc');
+    if(sel)sel.addEventListener('change',function(){document.getElementById('new-cat-wrap').style.display=this.value==='__new'?'block':'none';});
+  }
+}
+
+function rDash(){
+  const g=ST.items.filter(i=>status(i)==='green').length,y=ST.items.filter(i=>status(i)==='yellow').length,r=ST.items.filter(i=>status(i)==='red').length;
+  const crit=ST.items.filter(i=>status(i)==='red').slice(0,8);
+  const top=Object.entries(ST.salesData).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  return`<div class="stats-grid">
+    <div class="stat-card"><div class="stat-num">${ST.items.length}</div><div class="stat-label">Total items</div></div>
+    <div class="stat-card green"><div class="stat-num">${g}</div><div class="stat-label">Fully stocked</div></div>
+    <div class="stat-card yellow"><div class="stat-num">${y}</div><div class="stat-label">Running low</div></div>
+    <div class="stat-card red"><div class="stat-num">${r}</div><div class="stat-label">Need attention</div></div>
+  </div>
+  ${r>0?`<div class="card"><div class="section-title" style="color:var(--red);margin-bottom:10px">⚠ Critical — order now</div>
+    <table class="inv-table"><thead><tr><th style="width:40%">Item</th><th style="width:20%">Stock</th><th style="width:20%">Par level</th><th style="width:20%">Vendor</th></tr></thead>
+    <tbody>${crit.map(i=>`<tr><td style="font-weight:500">${i.name}</td><td><span class="status-badge badge-red">${i.stock} ${i.unit}</span></td><td style="color:var(--text-muted)">${i.parLevel} ${i.unit}</td><td style="color:var(--text-muted);font-size:12px">${i.vendor}</td></tr>`).join('')}</tbody></table></div>`:''}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="card"><div class="section-title" style="font-size:14px;margin-bottom:10px">Quick actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary" onclick="go('stock-in')">↑ Stock In</button>
+        <button class="btn btn-primary" onclick="go('stock-out')">↓ Stock Out</button>
+        <button class="btn" onclick="go('inventory')">☰ View Inventory</button>
+        <button class="btn" onclick="go('forecast')">◈ Order Forecast</button>
+      </div>
+    </div>
+    <div class="card"><div class="section-title" style="font-size:14px;margin-bottom:10px">Top sellers <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${ST.totalSalesDays}d)</span></div>
+      ${top.map(([d,q],i)=>`<div style="display:flex;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px"><span style="color:var(--text-muted);width:16px">${i+1}.</span><span style="flex:1">${d}</span><span style="font-weight:500;color:var(--brand)">${q}</span></div>`).join('')}
+    </div>
+  </div>
+  <div class="card"><div class="section-title" style="font-size:14px;margin-bottom:10px">Inventory by category</div>
+    ${[...new Set(ST.items.map(i=>i.cat))].map(cat=>{const its=ST.items.filter(i=>i.cat===cat),g=its.filter(i=>status(i)==='green').length,y=its.filter(i=>status(i)==='yellow').length,r=its.filter(i=>status(i)==='red').length;
+    return`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)"><div style="flex:1;font-size:13px">${cat}</div><div style="display:flex;gap:4px;font-size:11px"><span style="background:var(--green-bg);color:var(--green);padding:2px 7px;border-radius:8px">${g} ok</span>${y>0?`<span style="background:var(--yellow-bg);color:var(--yellow);padding:2px 7px;border-radius:8px">${y} low</span>`:''} ${r>0?`<span style="background:var(--red-bg);color:var(--red);padding:2px 7px;border-radius:8px">${r} critical</span>`:''}</div></div>`;}).join('')}
+  </div>`;
+}
+
+function rInv(){
+  let f=ST.items;
+  if(ST.invFilter!=='all') f=f.filter(i=>status(i)===ST.invFilter);
+  if(ST.invSearch) f=f.filter(i=>i.name.toLowerCase().includes(ST.invSearch.toLowerCase()));
+  const g={};f.forEach(i=>{if(!g[i.cat])g[i.cat]=[];g[i.cat].push(i);});
+  return`<div class="filter-row">
+    <input class="search-input" placeholder="Search items..." value="${ST.invSearch}" oninput="ST.invSearch=this.value;updateInvTable()">
+    <button class="filter-btn ${ST.invFilter==='all'?'active':''}" onclick="setFilter('all')">All</button>
+    <button class="filter-btn green ${ST.invFilter==='green'?'active':''}" onclick="setFilter('green')">● Good</button>
+    <button class="filter-btn yellow ${ST.invFilter==='yellow'?'active':''}" onclick="setFilter('yellow')">● Low</button>
+    <button class="filter-btn red ${ST.invFilter==='red'?'active':''}" onclick="setFilter('red')">● Critical</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="inv-table">
+      <thead><tr><th style="width:32%">Item</th><th style="width:14%">Status</th><th style="width:13%">Stock</th><th style="width:13%">Par level</th><th style="width:10%">Lead</th><th style="width:18%">Adjust</th></tr></thead>
+      <tbody id="inv-tbody">${buildInvRows(g)}</tbody>
+    </table>
+  </div>`;
+}
+
+function buildInvRows(grouped){
+  if(!grouped){
+    let f=ST.items;
+    if(ST.invFilter!=='all') f=f.filter(i=>status(i)===ST.invFilter);
+    if(ST.invSearch) f=f.filter(i=>i.name.toLowerCase().includes(ST.invSearch.toLowerCase()));
+    grouped={};f.forEach(i=>{if(!grouped[i.cat])grouped[i.cat]=[];grouped[i.cat].push(i);});
+  }
+  return Object.entries(grouped).map(([cat,its])=>`
+    <tr><td colspan="6" class="cat-header">${cat}</td></tr>
+    ${its.map(i=>{const s=status(i);return`<tr>
+      <td style="font-size:13px">${i.name}<div style="font-size:11px;color:var(--text-muted)">${i.vendor}</div></td>
+      <td><span class="status-badge badge-${s}">${s==='green'?'● Good':s==='yellow'?'● Low':'● Critical'}</span></td>
+      <td><input type="number" class="qty-input" value="${i.stock}" onchange="updateStock('${i.id}',this.value)" min="0"></td>
+      <td style="color:var(--text-muted)">${i.parLevel} ${i.unit}</td>
+      <td style="color:var(--text-muted)">${i.deliveryDays}d</td>
+      <td><button class="btn btn-sm" onclick="adjStock('${i.id}',1)">+</button> <button class="btn btn-sm" onclick="adjStock('${i.id}',-1)">−</button></td>
+    </tr>`;}).join('')}`).join('');
+}
+
+function updateInvTable(){const tb=document.getElementById('inv-tbody');if(tb)tb.innerHTML=buildInvRows();}
+function setFilter(f){ST.invFilter=f;render();}
+
+function rStockIn(){
+  if(!ST.stockInMode)return`<div class="section-title">↑ Stock In</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="action-card" style="border:1.5px solid var(--brand);cursor:pointer" onclick="setMode('in','invoice')">
+        <div style="font-size:28px;margin-bottom:8px">📷</div><h3>Upload invoice</h3>
+        <p>Photo or PDF of any supplier invoice. AI reads items and quantities and adds them to stock automatically.</p>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Supports: JPG, PNG, PDF</div>
+        <button class="btn btn-primary">Upload invoice →</button>
+      </div>
+      <div class="action-card" style="cursor:pointer" onclick="setMode('in','manual')">
+        <div style="font-size:28px;margin-bottom:8px">✏️</div><h3>Manual entry</h3>
+        <p>Enter received items one by one or do a full weekly physical count.</p>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Includes bulk count option</div>
+        <button class="btn">Enter manually →</button>
+      </div>
+    </div>`;
+  if(ST.stockInMode==='invoice')return`<div class="section-title">↑ Stock In — Invoice Upload</div>
+    <div class="action-card"><h3>Upload invoice</h3><p>Hyperpure, Zepto, Suqr, or any vendor. AI will extract items and quantities automatically.</p>
+      <label class="upload-zone"><input type="file" accept="image/*,application/pdf,.pdf" onchange="handleInvoice(event)">
+        <div style="font-size:32px;margin-bottom:8px;color:var(--border)">📄</div>
+        <div style="font-weight:500;color:var(--brand);margin-bottom:4px">Tap to upload invoice</div>
+        <div class="upload-hint">Accepts photos (JPG, PNG) and PDF files</div>
+      </label>
+      ${ST.aiProcessing?`<div class="ai-thinking"><div class="spinner"></div> Reading invoice with AI...</div>`:''}
+      ${ST.aiResult?`<div class="result-box"><div style="font-weight:500;margin-bottom:8px">✓ ${ST.aiResult.items?ST.aiResult.items.length:0} items found — check & edit before applying</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Tip: if a unit looks wrong (e.g. 1kg read as 1), fix the quantity here before applying.</div>
+        ${ST.aiResult.items?ST.aiResult.items.map((it,idx)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid rgba(45,122,79,0.2)">
+          <span style="flex:1;font-size:12px">${it.name}${it.raw?`<span style="color:var(--text-muted)"> · saw: "${it.raw}"</span>`:''}</span>
+          <input type="number" id="inv-q-${idx}" value="${it.qty}" style="width:80px;padding:3px 6px;border:0.5px solid var(--border);border-radius:5px;font-size:12px;text-align:right">
+          <span style="font-size:11px;color:var(--text-muted);width:34px">${it.unit||''}</span>
+        </div>`).join(''):''}
+        <button class="btn btn-primary" style="margin-top:10px" onclick="applyInvoice()">Apply to inventory →</button></div>`:''}
+      ${ST.aiError?`<div class="error-box">⚠ ${ST.aiError}</div>`:''}
+      <div class="divider"><span>or</span></div>
+      <button class="btn" onclick="setMode('in','manual')">Switch to manual entry</button>
+      <button class="btn" onclick="setMode('in',null)" style="margin-left:8px">← Back</button>
+    </div>`;
+  if(ST.stockInMode==='manual')return`<div class="section-title">↑ Stock In — Manual Entry</div>
+    <div class="action-card"><h3>Add received stock</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Item</label><select id="mi"><option value="">— select item —</option>${ST.items.map(i=>`<option value="${i.id}">${i.name} (${i.cat})</option>`).join('')}</select></div>
+        <div class="form-group"><label>Quantity received</label><input type="number" id="mq" placeholder="0" min="0"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label>Note (optional)</label><input type="text" id="mn" placeholder="e.g. Hyperpure weekly delivery"></div>
+      <button class="btn btn-primary" onclick="applyManualIn()">Add to stock →</button>
+      <button class="btn" onclick="setMode('in',null)" style="margin-left:8px">← Back</button>
+    </div>
+    <div class="action-card"><h3>Weekly physical count</h3><p>Update actual counted quantities. Leave blank to keep current value.</p>
+      <div style="max-height:320px;overflow-y:auto">
+        <table class="inv-table"><thead><tr><th>Item</th><th>Current</th><th>Actual count</th></tr></thead>
+        <tbody>${ST.items.map(i=>`<tr><td style="font-size:12px">${i.name}</td><td style="color:var(--text-muted);font-size:12px">${i.stock} ${i.unit}</td><td><input type="number" class="qty-input" id="b-${i.id}" placeholder="${i.stock}" min="0"></td></tr>`).join('')}</tbody></table>
+      </div>
+      <button class="btn btn-orange" onclick="applyBulk()" style="margin-top:12px">Save physical count →</button>
+    </div>`;
+}
+
+function rStockOut(){
+  if(!ST.stockOutMode)return`<div class="section-title">↓ Stock Out</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="action-card" style="border:1.5px solid var(--brand);cursor:pointer" onclick="setMode('out','sales')">
+        <div style="font-size:28px;margin-bottom:8px">📊</div><h3>Daily sales upload</h3>
+        <p>Upload today's Rista export. Stock auto-deducted via recipes. Also updates the forecast model.</p>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Accepts: CSV, Excel</div>
+        <button class="btn btn-primary">Upload daily sales →</button>
+      </div>
+      <div class="action-card" style="border:1.5px solid var(--orange);cursor:pointer" onclick="setMode('out','weeklysales')">
+        <div style="font-size:28px;margin-bottom:8px">📅</div><h3>Weekly / historical sales</h3>
+        <p>Upload a multi-week export to train the forecast model. Does not deduct current stock.</p>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Accepts: CSV, Excel</div>
+        <button class="btn btn-orange">Upload for forecast →</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="action-card" style="cursor:pointer" onclick="setMode('out','wastage')">
+        <div style="font-size:28px;margin-bottom:8px">🗒</div><h3>Wastage sheet upload</h3>
+        <p>Photo or PDF of daily wastage log. AI reads and deducts from stock.</p>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Accepts: JPG, PNG, PDF</div>
+        <button class="btn">Upload wastage →</button>
+      </div>
+      <div class="action-card" style="cursor:pointer" onclick="setMode('out','manual')">
+        <div style="font-size:28px;margin-bottom:8px">✏️</div><h3>Manual deduction</h3>
+        <p>Remove a specific qty for spillage, samples, or corrections.</p>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">With reason logging</div>
+        <button class="btn">Enter manually →</button>
+      </div>
+    </div>`;
+
+  const isDaily=ST.stockOutMode==='sales';
+  if(ST.stockOutMode==='sales'||ST.stockOutMode==='weeklysales')return`<div class="section-title">↓ ${isDaily?'Daily Sales Upload':'Weekly / Historical Sales'}</div>
+    <div class="action-card"><h3>${isDaily?'Upload Rista daily sales CSV':'Upload for forecast training'}</h3>
+      <p>${isDaily?'Stock auto-deducted via recipes. Sales counts also update the forecast model.':'Updates forecast only. Does <strong>not</strong> deduct from current stock.'}</p>
+      ${ST.aiWarn?`<div class="warn-box">⚠ ${ST.aiWarn}</div>`:''}
+      <label class="upload-zone"><input type="file" accept=".csv,.xlsx,.xls" onchange="handleSales(event,${isDaily})">
+        <div style="font-size:32px;margin-bottom:8px;color:var(--border)">📊</div>
+        <div style="font-weight:500;color:${isDaily?'var(--brand)':'var(--orange)'};margin-bottom:4px">Tap to upload Rista CSV / Excel</div>
+        <div class="upload-hint">${isDaily?'Export: Sales by Items (today)':'Export: Sales by Items (multidate)'}</div>
+      </label>
+      ${ST.aiProcessing?`<div class="ai-thinking"><div class="spinner"></div> Parsing sales data...</div>`:''}
+      ${ST.aiResult?`<div class="${isDaily?'result-box':'result-box-blue'}">
+        <div style="font-weight:500;margin-bottom:8px">✓ ${ST.aiResult.dishes} dish types · ${ST.aiResult.days} day(s) · ${Object.values(ST.aiResult.salesMap||{}).reduce((a,b)=>a+b,0)} total orders</div>
+        ${isDaily&&ST.aiResult.deductions?`${ST.aiResult.deductions.slice(0,6).map(d=>`<div style="padding:3px 0;font-size:12px;border-bottom:0.5px solid rgba(45,122,79,0.2)">${d.name}: <strong>−${d.qty} ${d.unit}</strong></div>`).join('')}${ST.aiResult.deductions.length>6?`<div style="font-size:11px;padding-top:4px">+${ST.aiResult.deductions.length-6} more</div>`:''}`:'' }
+        ${!isDaily?`<div style="font-size:12px;margin-top:4px">Top: ${ST.aiResult.topItems?ST.aiResult.topItems.slice(0,4).join(', '):''}</div>`:''}
+        <button class="btn btn-primary" style="margin-top:10px" onclick="applySales(${isDaily})">${isDaily?'Apply deductions + update forecast →':'Update forecast model →'}</button>
+      </div>`:''}
+      ${ST.aiError?`<div class="error-box">⚠ ${ST.aiError}</div>`:''}
+      <button class="btn" onclick="setMode('out',null)" style="margin-top:12px">← Back</button>
+    </div>`;
+
+  if(ST.stockOutMode==='wastage')return`<div class="section-title">↓ Wastage Upload</div>
+    <div class="action-card"><h3>Upload wastage log</h3><p>Photo or PDF of today's wastage sheet. AI reads items and deducts from stock.</p>
+      <label class="upload-zone"><input type="file" accept="image/*,application/pdf,.pdf" onchange="handleWastage(event)">
+        <div style="font-size:32px;margin-bottom:8px;color:var(--border)">🗒</div>
+        <div style="font-weight:500;color:var(--brand);margin-bottom:4px">Tap to upload wastage sheet</div>
+        <div class="upload-hint">Accepts photos (JPG, PNG) and PDF files</div>
+      </label>
+      ${ST.aiProcessing?`<div class="ai-thinking"><div class="spinner"></div> Reading wastage sheet with AI...</div>`:''}
+      ${ST.aiResult?`<div class="result-box"><div style="font-weight:500;margin-bottom:8px">✓ ${ST.aiResult.items?ST.aiResult.items.length:0} entries found — check & edit before applying</div>
+        ${ST.aiResult.items?ST.aiResult.items.map((it,idx)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid rgba(45,122,79,0.2)">
+          <span style="flex:1;font-size:12px">${it.name}${it.reason?`<span style="color:var(--text-muted)"> · ${it.reason}</span>`:''}</span>
+          <input type="number" id="wst-q-${idx}" value="${it.qty}" style="width:80px;padding:3px 6px;border:0.5px solid var(--border);border-radius:5px;font-size:12px;text-align:right">
+          <span style="font-size:11px;color:var(--text-muted);width:34px">${it.unit||''}</span>
+        </div>`).join(''):''}
+        <button class="btn btn-primary" style="margin-top:10px" onclick="applyWastage()">Deduct from stock →</button></div>`:''}
+      ${ST.aiError?`<div class="error-box">⚠ ${ST.aiError}</div>`:''}
+      <div class="divider"><span>or log manually</span></div>
+      <button class="btn" onclick="setMode('out','manual')">Manual wastage entry</button>
+      <button class="btn" onclick="setMode('out',null)" style="margin-left:8px">← Back</button>
+    </div>`;
+
+  if(ST.stockOutMode==='manual')return`<div class="section-title">↓ Manual Deduction</div>
+    <div class="action-card"><h3>Manual deduction</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Item</label><select id="oi"><option value="">— select item —</option>${ST.items.map(i=>`<option value="${i.id}">${i.name}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Quantity to remove</label><input type="number" id="oq" placeholder="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Reason</label><select id="or2"><option>Wastage</option><option>Sample / Staff</option><option>Spoiled</option><option>Correction</option><option>Other</option></select></div>
+        <div class="form-group"><label>Note</label><input type="text" id="on" placeholder="Additional details"></div>
+      </div>
+      <button class="btn btn-primary" onclick="applyManualOut()">Deduct from stock →</button>
+      <button class="btn" onclick="setMode('out',null)" style="margin-left:8px">← Back</button>
+    </div>`;
+}
+
+function rRecipes(){
+  const cats=[...new Set(ST.recipes.map(r=>r.category))];
+  return`<div class="section-title">✦ Recipes</div>
+    <div style="margin-bottom:10px;font-size:12px;color:var(--text-muted)">${ST.recipes.length} recipes — maps menu items to raw ingredients for automatic stock deduction.</div>
+    ${cats.map(cat=>`<div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:500;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">${cat}</div>
+      ${ST.recipes.filter(r=>r.category===cat).map(r=>`<div class="recipe-card"><div class="recipe-name">${r.name}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px">${r.ingredients.map(i=>{const isT=isNaN(parseFloat(i.qty));return`<span class="tag ${isT?'tag-warn':''}">${i.name}: ${i.qty}${isT?' (~1)':''}</span>`;}).join('')}</div>
+      </div>`).join('')}
+    </div>`).join('')}
+    <div class="card"><div style="font-size:14px;font-weight:500;margin-bottom:4px">Add new recipe</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Pick ingredients from your inventory list so names always match. Add rows as needed.</div>
+      <div class="form-row">
+        <div class="form-group"><label>Dish name (must match the name in Rista sales export)</label><input type="text" id="rn" placeholder="e.g. Avocado Toast"></div>
+        <div class="form-group"><label>Category</label>
+          <select id="rc">${[...new Set(ST.recipes.map(r=>r.category))].map(c=>`<option>${c}</option>`).join('')}<option value="__new">+ New category…</option></select>
+        </div>
+      </div>
+      <div id="new-cat-wrap" style="display:none;margin-bottom:10px"><div class="form-group"><label>New category name</label><input type="text" id="rc-new" placeholder="e.g. Smoothies"></div></div>
+      <label style="font-size:11px;color:var(--text-muted);font-weight:500">Ingredients</label>
+      <div id="recipe-ing-rows" style="margin:6px 0"></div>
+      <button class="btn btn-sm" onclick="addIngRow()" style="margin-bottom:12px">+ Add ingredient</button>
+      <div><button class="btn btn-primary" onclick="addRecipe()">Save recipe →</button></div>
+    </div>`;
+}
+
+function ingRowHtml(idx){
+  return `<div class="ing-row" style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+    <select class="ing-name" style="flex:1;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface)">
+      <option value="">— select ingredient —</option>
+      ${ST.items.map(i=>`<option value="${i.name}">${i.name} (${i.unit})</option>`).join('')}
+    </select>
+    <input type="number" class="ing-qty" placeholder="qty" style="width:80px;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;font-size:12px" step="0.01">
+    <button class="btn btn-sm" onclick="this.parentElement.remove()" style="color:var(--red)">×</button>
+  </div>`;
+}
+function addIngRow(){const c=document.getElementById('recipe-ing-rows');if(c)c.insertAdjacentHTML('beforeend',ingRowHtml());}
+
+function rForecast(){
+  const days=ST.totalSalesDays||30;
+  const ing={};
+  ST.recipes.forEach(r=>{const q=ST.salesData[r.name]||0;if(q>0)r.ingredients.forEach(i=>{const n=parseFloat(i.qty)||1;ing[i.name]=(ing[i.name]||0)+(q/days)*n;});});
+  const list=ST.items.map(i=>{const du=Math.round((ing[i.name]||0)*10)/10,dos=du>0?Math.round(i.stock/du):999,oq=Math.max(0,i.parLevel-i.stock),urg=i.stock<=0?'red':i.stock<i.parLevel*0.3?'red':i.stock<i.parLevel?'yellow':'green';return{...i,du,dos,oq,urg};}).filter(i=>i.oq>0).sort((a,b)=>{const o={red:0,yellow:1,green:2};return o[a.urg]-o[b.urg]||b.oq-a.oq;});
+  const byV={};list.filter(i=>i.urg==='red').forEach(i=>{if(!byV[i.vendor])byV[i.vendor]=[];byV[i.vendor].push(i);});
+  return`<div class="section-title">◈ Order Forecast</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text-muted)">Based on ${days} days · ${ST.salesHistory.length} upload(s)</span>
+      <span class="status-badge badge-blue">${Object.keys(ST.salesData).length} dishes tracked</span>
+    </div>
+    ${Object.keys(byV).length>0?`<div class="card" style="background:var(--cream);border-color:var(--orange);margin-bottom:12px">
+      <div style="font-size:13px;font-weight:500;color:var(--brand);margin-bottom:10px">Order list by vendor — critical only</div>
+      ${Object.entries(byV).map(([v,its])=>`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:500;color:var(--orange);text-transform:uppercase;margin-bottom:4px">${v}</div>${its.map(i=>`<div style="font-size:12px;padding:3px 0">${i.name} — order <strong>${i.oq} ${i.unit}</strong></div>`).join('')}</div>`).join('')}
+    </div>`:''}
+    ${list.length===0?`<div class="empty-state"><div style="font-size:32px;margin-bottom:10px">✓</div>All items at or above par level.</div>`:`
+    <div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
+      <table class="inv-table" style="min-width:600px">
+        <thead><tr><th style="width:24%">Item</th><th style="width:11%">Status</th><th style="width:10%">Stock</th><th style="width:10%">Par</th><th style="width:11%">Daily use</th><th style="width:9%">Days left</th><th style="width:10%">Order</th><th style="width:15%">Vendor</th></tr></thead>
+        <tbody>${list.map(i=>`<tr>
+          <td style="font-size:13px">${i.name}</td>
+          <td><span class="status-badge badge-${i.urg}">${i.urg==='red'?'● Now':i.urg==='yellow'?'● Low':'● OK'}</span></td>
+          <td>${i.stock} ${i.unit}</td><td style="color:var(--text-muted)">${i.parLevel}</td>
+          <td style="color:var(--text-muted)">${i.du>0?i.du+'/d':'—'}</td>
+          <td style="color:${i.dos<3?'var(--red)':i.dos<7?'var(--yellow)':'var(--text-muted)'}">${i.dos<999?i.dos+'d':'—'}</td>
+          <td style="font-weight:500;color:var(--brand)">${i.oq} ${i.unit}</td>
+          <td style="font-size:11px;color:var(--text-muted)">${i.vendor}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`}`;
+}
+
+function rReports(){
+  const now=new Date();
+  let startDate;
+  if(ST.reportPeriod==='week'){startDate=new Date(now);startDate.setDate(now.getDate()-7);}
+  else if(ST.reportPeriod==='month'){startDate=new Date(now);startDate.setMonth(now.getMonth()-1);}
+  else {startDate=new Date(now);startDate.setDate(now.getDate()-7);}
+  const startTs=startDate.getTime();
+  const periodMoves=ST.movements.filter(m=>m.ts>=startTs);
+
+  // Build per-item report
+  const rep={};
+  ST.items.forEach(i=>{rep[i.id]={name:i.name,cat:i.cat,unit:i.unit,closing:i.stock,invoiceIn:0,manualIn:0,countIn:0,salesOut:0,wastageOut:0,manualOut:0,countOut:0};});
+  periodMoves.forEach(m=>{
+    if(!rep[m.itemId]) return;
+    const r=rep[m.itemId];
+    if(m.dir==='in'){ if(m.source==='invoice')r.invoiceIn+=m.qty; else if(m.source==='count')r.countIn+=m.qty; else r.manualIn+=m.qty; }
+    else { if(m.source==='sales')r.salesOut+=m.qty; else if(m.source==='wastage')r.wastageOut+=m.qty; else if(m.source==='count')r.countOut+=m.qty; else r.manualOut+=m.qty; }
+  });
+  // Opening = closing - totalIn + totalOut
+  Object.values(rep).forEach(r=>{
+    const totIn=r.invoiceIn+r.manualIn+r.countIn;
+    const totOut=r.salesOut+r.wastageOut+r.manualOut+r.countOut;
+    r.opening=Math.max(0,Math.round((r.closing-totIn+totOut)*10)/10);
+    r.totalIn=Math.round(totIn*10)/10;
+    r.totalOut=Math.round(totOut*10)/10;
+  });
+  const rows=Object.values(rep).filter(r=>r.totalIn>0||r.totalOut>0||r.closing>0);
+  const totMoves=periodMoves.length;
+
+  // Totals
+  const sumIn=rows.reduce((a,r)=>a+r.totalIn,0);
+  const sumOut=rows.reduce((a,r)=>a+r.totalOut,0);
+  const sumSales=rows.reduce((a,r)=>a+r.salesOut,0);
+  const sumWaste=rows.reduce((a,r)=>a+r.wastageOut,0);
+
+  return`<div class="section-title">▤ Reports</div>
+    <div class="filter-row">
+      <button class="filter-btn ${ST.reportPeriod==='week'?'active':''}" onclick="ST.reportPeriod='week';render()">This week (7 days)</button>
+      <button class="filter-btn ${ST.reportPeriod==='month'?'active':''}" onclick="ST.reportPeriod='month';render()">This month (30 days)</button>
+      <button class="btn btn-orange btn-sm" style="margin-left:auto" onclick="downloadReport()">↓ Download CSV</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Period: ${startDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})} – ${now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})} · ${totMoves} movements recorded</div>
+    ${totMoves===0?`<div class="warn-box">No movements recorded in this period yet. Reports build up as you log stock in/out from today onward.</div>`:''}
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card green"><div class="stat-num" style="font-size:18px">${Math.round(sumIn)}</div><div class="stat-label">Total IN (all units)</div></div>
+      <div class="stat-card red"><div class="stat-num" style="font-size:18px">${Math.round(sumOut)}</div><div class="stat-label">Total OUT (all units)</div></div>
+      <div class="stat-card"><div class="stat-num" style="font-size:18px">${Math.round(sumSales)}</div><div class="stat-label">Used in sales</div></div>
+      <div class="stat-card yellow"><div class="stat-num" style="font-size:18px">${Math.round(sumWaste)}</div><div class="stat-label">Wastage</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
+      <table class="inv-table" style="min-width:760px">
+        <thead><tr>
+          <th style="width:18%">Item</th><th style="width:9%">Opening</th>
+          <th style="width:9%">In: Invoice</th><th style="width:9%">In: Manual</th>
+          <th style="width:9%">Out: Sales</th><th style="width:9%">Out: Wastage</th><th style="width:9%">Out: Manual</th>
+          <th style="width:9%">Count adj</th><th style="width:9%">Closing</th>
+        </tr></thead>
+        <tbody>${rows.length===0?`<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px">No activity yet</td></tr>`:rows.map(r=>`<tr>
+          <td style="font-size:12px">${r.name}<div style="font-size:10px;color:var(--text-muted)">${r.cat}</div></td>
+          <td>${r.opening} ${r.unit}</td>
+          <td style="color:var(--green)">${r.invoiceIn||'—'}</td>
+          <td style="color:var(--green)">${r.manualIn||'—'}</td>
+          <td style="color:var(--red)">${r.salesOut||'—'}</td>
+          <td style="color:var(--yellow)">${r.wastageOut||'—'}</td>
+          <td style="color:var(--red)">${r.manualOut||'—'}</td>
+          <td style="color:var(--text-muted)">${(r.countIn-r.countOut)||'—'}</td>
+          <td style="font-weight:500">${r.closing} ${r.unit}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function downloadReport(){
+  const now=new Date();
+  let startDate=new Date(now);
+  if(ST.reportPeriod==='month')startDate.setMonth(now.getMonth()-1);else startDate.setDate(now.getDate()-7);
+  const startTs=startDate.getTime();
+  const periodMoves=ST.movements.filter(m=>m.ts>=startTs);
+  const rep={};
+  ST.items.forEach(i=>{rep[i.id]={name:i.name,cat:i.cat,unit:i.unit,closing:i.stock,invoiceIn:0,manualIn:0,countIn:0,salesOut:0,wastageOut:0,manualOut:0,countOut:0};});
+  periodMoves.forEach(m=>{if(!rep[m.itemId])return;const r=rep[m.itemId];if(m.dir==='in'){if(m.source==='invoice')r.invoiceIn+=m.qty;else if(m.source==='count')r.countIn+=m.qty;else r.manualIn+=m.qty;}else{if(m.source==='sales')r.salesOut+=m.qty;else if(m.source==='wastage')r.wastageOut+=m.qty;else if(m.source==='count')r.countOut+=m.qty;else r.manualOut+=m.qty;}});
+  Object.values(rep).forEach(r=>{const ti=r.invoiceIn+r.manualIn+r.countIn,to=r.salesOut+r.wastageOut+r.manualOut+r.countOut;r.opening=Math.max(0,Math.round((r.closing-ti+to)*10)/10);});
+  const header=['Item','Category','Unit','Opening Stock','In-Invoice','In-Manual','In-Count','Out-Sales','Out-Wastage','Out-Manual','Out-Count','Closing Stock'];
+  const lines=[header.join(',')];
+  Object.values(rep).filter(r=>r.invoiceIn||r.manualIn||r.salesOut||r.wastageOut||r.manualOut||r.closing).forEach(r=>{
+    lines.push([`"${r.name}"`,`"${r.cat}"`,r.unit,r.opening,r.invoiceIn,r.manualIn,r.countIn,r.salesOut,r.wastageOut,r.manualOut,r.countOut,r.closing].join(','));
+  });
+  const period=ST.reportPeriod==='month'?'monthly':'weekly';
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CS_${period}_report_${now.toISOString().slice(0,10)}.csv`;a.click();
+  toast('Report downloaded');
+}
+
+function rLog(){
+  return`<div class="section-title">◷ Activity Log</div>
+    ${ST.activityLog.length===0?`<div class="empty-state"><div style="font-size:32px;margin-bottom:10px">◷</div>No activity yet.</div>`:`
+    <div class="card">${ST.activityLog.slice(0,60).map(e=>`<div class="log-entry">
+      <div class="log-dot log-dot-${e.type}"></div>
+      <div><div class="log-desc">${e.desc}</div>${e.details?`<div class="log-meta">${e.details}</div>`:''}<div class="log-meta">${e.ts}</div></div>
+    </div>`).join('')}</div>`}`;
+}
+
+function rSetup(){
+  return`<div class="section-title">⚙ Setup</div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:500;margin-bottom:4px">Add new inventory item</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Add beverages, packaging, or any item not already in the list.</div>
+      <div class="form-row">
+        <div class="form-group"><label>Item name</label><input type="text" id="ni-name" placeholder="e.g. Oat Milk"></div>
+        <div class="form-group"><label>Category</label><select id="ni-cat">${[...new Set(ST.items.map(i=>i.cat))].map(c=>`<option>${c}</option>`).join('')}<option>Other</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Vendor</label><input type="text" id="ni-vendor" placeholder="Hyperpure / Zepto / etc."></div>
+        <div class="form-group"><label>Unit (gm / ml / pc / pkt)</label><input type="text" id="ni-unit" placeholder="gm"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Par level</label><input type="number" id="ni-par" placeholder="0" min="0"></div>
+        <div class="form-group"><label>Delivery time (days)</label><input type="number" id="ni-del" placeholder="1" min="1"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addItem()">Add item →</button>
+    </div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:500;margin-bottom:4px">Data management</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Forecast based on ${ST.totalSalesDays} days · ${Object.keys(ST.salesData).length} dishes · ${ST.salesHistory.length} uploads</div>
+      <div class="btn-row">
+        <button class="btn" onclick="exportData()">Export data (JSON)</button>
+        <button class="btn" style="color:var(--red);border-color:rgba(192,57,43,0.3)" onclick="resetStock()">Reset stock to 0</button>
+        <button class="btn" style="color:var(--red);border-color:rgba(192,57,43,0.3)" onclick="resetSales()">Reset sales data</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:500;margin-bottom:4px">API Configuration</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Required for AI invoice and wastage reading. Get your key from console.anthropic.com</div>
+      <div class="form-group" style="margin-bottom:10px"><label>Anthropic API Key</label><input type="password" id="api-key-input" placeholder="sk-ant-..." value="${localStorage.getItem('cs_api_key')||''}"></div>
+      <button class="btn btn-primary" onclick="saveApiKey()">Save API key →</button>
+    </div>`;
+}
+
+function setMode(dir,m){if(dir==='in')ST.stockInMode=m;else ST.stockOutMode=m;ST.aiResult=null;ST.aiError=null;ST.aiWarn=null;render();}
+function updateStock(id,v){const it=ST.items.find(i=>i.id===id);if(!it)return;const old=it.stock;it.stock=Math.max(0,parseFloat(v)||0);log('adj',`${it.name} adjusted`,`${old}→${it.stock} ${it.unit}`);saveState();toast('Stock updated');}
+function adjStock(id,d){const it=ST.items.find(i=>i.id===id);if(!it)return;it.stock=Math.max(0,it.stock+d);log('adj',`${it.name} adjusted`,`${d>0?'+':''}${d} ${it.unit}`);saveState();render();toast(`${it.name}: ${it.stock} ${it.unit}`);}
+function applyManualIn(){const id=document.getElementById('mi').value,q=parseFloat(document.getElementById('mq').value)||0,n=document.getElementById('mn').value;if(!id||q<=0){toast('Select item and enter quantity');return;}const it=ST.items.find(i=>i.id===id);if(!it)return;it.stock+=q;recordMove(it.id,it.name,'in','manual',q,it.unit);log('in',`${it.name} received: +${q} ${it.unit}`,n);saveState();toast(`Added ${q} ${it.unit} of ${it.name}`);setMode('in',null);}
+function applyBulk(){let n=0;ST.items.forEach(i=>{const el=document.getElementById(`b-${i.id}`);if(el&&el.value!==''){const v=Math.max(0,parseFloat(el.value)||0);if(v!==i.stock){const diff=v-i.stock;recordMove(i.id,i.name,diff>=0?'in':'out','count',Math.abs(diff),i.unit);log('adj',`${i.name} physical count`,`${i.stock}→${v} ${i.unit}`);i.stock=v;n++;}}});saveState();toast(`${n} items updated`);setMode('in',null);}
+function applyManualOut(){const id=document.getElementById('oi').value,q=parseFloat(document.getElementById('oq').value)||0,r=document.getElementById('or2').value,n=document.getElementById('on').value;if(!id||q<=0){toast('Select item and enter quantity');return;}const it=ST.items.find(i=>i.id===id);if(!it)return;it.stock=Math.max(0,it.stock-q);recordMove(it.id,it.name,'out',r==='Wastage'||r==='Spoiled'?'wastage':'manual',q,it.unit);log('out',`${it.name} deducted: −${q} ${it.unit}`,`${r}${n?'. '+n:''}`);saveState();toast(`Removed ${q} ${it.unit}`);setMode('out',null);}
+
+function getApiKey(){return localStorage.getItem('cs_api_key')||'';}
+function saveApiKey(){const k=document.getElementById('api-key-input').value.trim();localStorage.setItem('cs_api_key',k);toast('API key saved');}
+
+async function callAI(content){
+  const key=getApiKey();
+  if(!key){throw new Error('No API key set. Go to Setup → API Configuration to add your Anthropic API key.');}
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content}]})});
+  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'API error');}
+  const data=await res.json();
+  return data.content&&data.content[0]?data.content[0].text:'';
+}
+
+async function handleInvoice(event){
+  const file=event.target.files[0];if(!file)return;
+  ST.aiProcessing=true;ST.aiResult=null;ST.aiError=null;render();
+  try{
+    const b64=await toB64(file);
+    const names=ST.items.map(i=>i.name).join(', ');
+    const isPDF=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
+    const content=isPDF?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:`This is a supplier invoice for a cafe. Extract every line item with its quantity.
+
+CRITICAL UNIT RULES — convert everything to base units:
+- Weight: always return grams (gm). "1 kg" = 1000, "1.5 kg" = 1500, "500 g" = 500, "250 gm" = 250.
+- Volume: always return millilitres (ml). "1 L" = 1000, "2 litre" = 2000, "500 ml" = 500.
+- Count items (eggs, breads, buns): return the piece count with unit "pc".
+- Packets/tins/bottles: return count with unit "pkt", "tin", or "bottle".
+- If an item shows "2 x 500g", multiply to get total = 1000 gm.
+
+Known inventory items (match names to these where possible): ${names}.
+
+Return ONLY valid JSON, no other text:
+{"items":[{"name":"item name","qty":<number in base unit>,"unit":"gm|ml|pc|pkt|tin|bottle","raw":"original text seen on invoice e.g. 1 kg"}]}`}]:[{type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}},{type:'text',text:`This is a photo of a supplier invoice for Caffeinated Shots cafe. Extract every line item with its quantity.
+
+CRITICAL UNIT RULES — convert everything to base units:
+- Weight: always return grams (gm). "1 kg" = 1000, "1.5 kg" = 1500, "500 g" = 500, "250 gm" = 250.
+- Volume: always return millilitres (ml). "1 L" = 1000, "2 litre" = 2000, "500 ml" = 500.
+- Count items (eggs, breads, buns): return the piece count with unit "pc".
+- Packets/tins/bottles: return count with unit "pkt", "tin", or "bottle".
+- If an item shows "2 x 500g", multiply to get total = 1000 gm.
+
+Known inventory items (match names to these where possible): ${names}.
+
+Return ONLY valid JSON, no other text:
+{"items":[{"name":"item name","qty":<number in base unit>,"unit":"gm|ml|pc|pkt|tin|bottle","raw":"original text e.g. 1 kg"}]}`}];
+    const txt=await callAI(content);
+    ST.aiResult=JSON.parse(txt.replace(/```json|```/g,'').trim());
+    ST.aiProcessing=false;render();
+  }catch(e){ST.aiProcessing=false;ST.aiError=e.message||'Could not read invoice. Try a clearer photo or use manual entry.';render();}
+}
+
+async function handleWastage(event){
+  const file=event.target.files[0];if(!file)return;
+  ST.aiProcessing=true;ST.aiResult=null;ST.aiError=null;render();
+  try{
+    const b64=await toB64(file);
+    const names=ST.items.map(i=>i.name).join(', ');
+    const isPDF=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
+    const content=isPDF?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:`Wastage log. Extract items, quantities, reasons. Known items: ${names}. Return ONLY JSON: {"items":[{"name":"item name","qty":number,"unit":"gm or ml or pc","reason":"reason if written"}]}`}]:[{type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}},{type:'text',text:`Wastage log sheet from Caffeinated Shots kitchen. Extract all wasted items, quantities, and reasons. Known items: ${names}. Return ONLY JSON: {"items":[{"name":"item name","qty":number,"unit":"gm or ml or pc","reason":"reason if written"}]}`}];
+    const txt=await callAI(content);
+    ST.aiResult=JSON.parse(txt.replace(/```json|```/g,'').trim());
+    ST.aiProcessing=false;render();
+  }catch(e){ST.aiProcessing=false;ST.aiError=e.message||'Could not read wastage sheet.';render();}
+}
+
+async function handleSales(event,deductStock){
+  const file=event.target.files[0];if(!file)return;
+  ST.aiProcessing=true;ST.aiResult=null;ST.aiError=null;ST.aiWarn=null;render();
+  try{
+    const txt=await file.text();
+    const lines=txt.split('\n').filter(l=>l.trim());
+    const salesMap={};const dateSet=new Set();
+    lines.slice(1).forEach(line=>{const cols=line.split(',').map(c=>c.replace(/"/g,'').trim());const date=cols[0],item=cols[2],type=cols[3],q=parseFloat(cols[4])||0;if(date)dateSet.add(date);if(item&&(type==='Sale'||type==='Non Chargeable')&&q>0)salesMap[item]=(salesMap[item]||0)+q;});
+    const days=Math.max(dateSet.size,1);
+    const deductions=[];
+    if(deductStock){ST.recipes.forEach(r=>{const q=salesMap[r.name]||0;if(q>0)r.ingredients.forEach(i=>{const n=parseFloat(i.qty)||1;const ex=deductions.find(d=>d.name===i.name);if(ex)ex.qty=Math.round((ex.qty+q*n)*10)/10;else deductions.push({name:i.name,qty:Math.round(q*n*10)/10,unit:i.unit||''});});});}
+    const topItems=Object.entries(salesMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k])=>k);
+    ST.aiResult={dishes:Object.keys(salesMap).length,deductions,salesMap,days,topItems};
+    ST.aiProcessing=false;render();
+  }catch(e){ST.aiProcessing=false;ST.aiError='Could not parse file. Ensure it is a Rista CSV export.';render();}
+}
+
+function applyInvoice(){if(!ST.aiResult||!ST.aiResult.items)return;let n=0;ST.aiResult.items.forEach((it,idx)=>{
+  // Read possibly-edited values from inputs
+  const qEl=document.getElementById('inv-q-'+idx);
+  const qty=qEl?parseFloat(qEl.value)||it.qty:it.qty;
+  const inv=fuzzyMatch(ST.items,it.name);
+  if(inv){inv.stock+=qty;recordMove(inv.id,inv.name,'in','invoice',qty,inv.unit);n++;}
+});log('in',`Invoice uploaded — ${n} items added to stock`);saveState();toast(`${n} items updated from invoice`);setMode('in',null);go('inventory');}
+function applyWastage(){if(!ST.aiResult||!ST.aiResult.items)return;let n=0;ST.aiResult.items.forEach((it,idx)=>{const qEl=document.getElementById('wst-q-'+idx);const qty=qEl?parseFloat(qEl.value)||it.qty:it.qty;const inv=fuzzyMatch(ST.items,it.name);if(inv){inv.stock=Math.max(0,inv.stock-qty);recordMove(inv.id,inv.name,'out','wastage',qty,inv.unit);n++;}});log('out',`Wastage logged — ${n} items deducted`);saveState();toast(`${n} items deducted`);setMode('out',null);go('inventory');}
+function applySales(deductStock){if(!ST.aiResult)return;const{salesMap,deductions,days,dishes}=ST.aiResult;Object.entries(salesMap).forEach(([d,q])=>{ST.salesData[d]=(ST.salesData[d]||0)+q;});ST.totalSalesDays=(ST.totalSalesDays||0)+days;ST.salesHistory.unshift({label:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),dishes,days});if(deductStock&&deductions&&deductions.length>0){deductions.forEach(d=>{const inv=ST.items.find(i=>i.name.toLowerCase()===d.name.toLowerCase());if(inv){inv.stock=Math.max(0,inv.stock-d.qty);recordMove(inv.id,inv.name,'out','sales',d.qty,inv.unit);}});log('out',`Daily sales uploaded — ${dishes} dishes · ${deductions.length} deductions`,`${days} day(s)`);}else{log('sales',`Weekly sales uploaded — ${dishes} dishes · ${days} days`,`Total: ${ST.totalSalesDays}d`);}saveState();toast(deductStock?`Stock updated · forecast on ${ST.totalSalesDays}d data`:`Forecast updated — ${days} days added`);setMode('out',null);go(deductStock?'inventory':'forecast');}
+function addRecipe(){
+  const n=document.getElementById('rn').value.trim();
+  let c=document.getElementById('rc').value;
+  if(c==='__new'){c=(document.getElementById('rc-new').value.trim())||'Other';}
+  const rows=document.querySelectorAll('#recipe-ing-rows .ing-row');
+  const ingredients=[];
+  rows.forEach(row=>{const name=row.querySelector('.ing-name').value;const qty=row.querySelector('.ing-qty').value;if(name&&qty)ingredients.push({name,qty:String(qty)});});
+  if(!n){toast('Enter the dish name');return;}
+  if(ingredients.length===0){toast('Add at least one ingredient');return;}
+  // Check for duplicate recipe name
+  if(ST.recipes.some(r=>r.name.toLowerCase()===n.toLowerCase())){toast('A recipe with this name already exists');return;}
+  ST.recipes.push({id:'r'+Date.now(),name:n,category:c||'Other',ingredients});
+  saveState();toast('Recipe added ✓');render();
+}
+function addItem(){const n=document.getElementById('ni-name').value.trim(),c=document.getElementById('ni-cat').value,v=document.getElementById('ni-vendor').value.trim(),u=document.getElementById('ni-unit').value.trim(),p=parseFloat(document.getElementById('ni-par').value)||0,d=parseInt(document.getElementById('ni-del').value)||1;if(!n||!u){toast('Enter item name and unit');return;}ST.items.push({id:'i'+Date.now(),name:n,cat:c,vendor:v||'Other',deliveryDays:d,parLevel:p,stock:0,unit:u});saveState();toast('Item added');render();}
+function exportData(){const blob=new Blob([JSON.stringify({items:ST.items,recipes:ST.recipes,salesData:ST.salesData,log:ST.activityLog},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cs_inventory.json';a.click();}
+function resetStock(){if(!confirm('Reset all stock to 0?'))return;ST.items.forEach(i=>i.stock=0);log('adj','All stock reset to 0');saveState();toast('Stock reset');render();}
+function resetSales(){if(!confirm('Reset all sales and forecast data?'))return;ST.salesData={};ST.salesHistory=[];ST.totalSalesDays=0;log('adj','Sales data reset');saveState();toast('Sales data reset');render();}
+function toB64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
+
+document.getElementById('header-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+loadState();renderNav();render();
+</script>
+</body>
+</html>
